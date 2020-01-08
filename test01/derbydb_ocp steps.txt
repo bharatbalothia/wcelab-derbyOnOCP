@@ -1,0 +1,90 @@
+****************** NOTE (This means READ ME before using!)********************
+
+This procedure creates an NON_PERISTANT instance of Derby DB and was used as a simple starting point to POC for multischema/multi DB vendor
+for OMS. DO NOT USE THIS to create an instance for any type of peristant data. 
+
+If you delete the pod this procedure creates, you will LOSE everything stored in it. You have been warned.
+
+******************************************************************************
+
+1) Create Docker image locally using the Dockerfile
+
+2) Upload Image to ICR
+
+3) Create Project on OCP
+
+4) Log in to OCP CLI
+
+5) While in new project, use kubectl to get default secret from cluster
+
+	kubectl -n default get secret default-us-icr-io -o yaml | sed 's/default/<project_name>/g' | kubectl -n <project_name> create -f -
+
+6) Create image stream using yaml below, replacing <values> with your values
+
+apiVersion: v1
+kind: ImageStream
+metadata:
+  labels:
+    app: derbydb-is
+  name: derbydb-is
+spec:
+  lookupPolicy:
+    local: true
+  tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: 'us.icr.io/<ICR_Namespace>/<image_name>:<tag>'
+      name: latest
+status:
+  dockerImageRepository: ""
+
+7) Create pod in you project using yaml below:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: derbydb
+  labels:
+    app: derbydb
+spec:
+  containers:
+    - name: oms
+      image: docker-registry.default.svc:5000/<project name>/<image stream name>:latest
+      securityContext:
+         privileged: false
+         runAsUser: 0
+         readOnlyRootFilesystem: false
+         allowPrivilegeEscalation: false
+         capabilities:
+           drop:
+           - ALL
+      command: ["java", "-Dderby.stream.error.field=java.lang.System.out", "org.apache.derby.drda.NetworkServerControl", "start", "-h", "0.0.0.0"]
+
+8) Create a service in the OCP project to open the port for derbyby (default: 1527)
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    derby-svc-name: derby-svc
+  name: derby-svc
+  namespace: <project_name>
+spec:
+  ports:
+    - name: derby-port
+      port: 1527
+      protocol: TCP
+      targetPort: 1527
+  selector:
+    app: derbydb
+  sessionAffinity: None
+  type: ClusterIP      
+
+9) From your OCP CLI, use kubectl to forward the derby port
+
+   kubectl port-forward derbydb 1530:1527
+
+   # Listening on port 1530 locally, forwarding to 1527 in the pod
+
+10) Use derbyTest.java to test your connection. The java program has 2 connection objects. I tested using a localhost instace of the image on port 		1527 (con2) and a kubectl port forward from OCP  (1530) as describe above to test two seperate instances.
