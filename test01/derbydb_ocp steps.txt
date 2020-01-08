@@ -1,7 +1,6 @@
 ****************** NOTE (This means READ ME before using!)********************
 
-This procedure creates an NON_PERISTANT instance of Derby DB and was used as a simple starting point to POC for multischema/multi DB vendor
-for OMS. DO NOT USE THIS to create an instance for any type of peristant data. 
+This procedure creates an NON_PERISTENT instance of Derby DB and was used as a simple starting point to POC for multischema/multi DB vendor for OMS. DO NOT USE THIS to create an instance for any type of peristent data. 
 
 If you delete the pod this procedure creates, you will LOSE everything stored in it. You have been warned.
 
